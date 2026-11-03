@@ -27,6 +27,8 @@ th.num,td.num{text-align:right}
 th .arr{color:#2457d6;font-size:12px}
 tfoot td{font-weight:700;background:#fafbfc;border-bottom:0}
 td.fail{color:#b3261e}
+td.qr{color:#889}
+td.qr.hot{color:#2457d6;font-weight:700}
 .slug{color:#667;font-family:monospace}
 .status{color:#667;margin:8px 2px;font-size:13px}
 details{margin-top:14px;background:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 2px 8px #0001}
@@ -115,6 +117,7 @@ var COLS=[
  {id:'week',t:'本週點擊',num:1,get:function(r){return r.d.week_total}},
  {id:'vis',t:'訪客數',num:1,get:function(r){return r.d.visitors}},
  {id:'wvis',t:'本週訪客',num:1,get:function(r){return r.d.week_visitors}},
+ {id:'qr',t:'QR 掃描',num:1,get:function(r){return (r.d.clicks&&r.d.clicks.qr_scan)||0}},
  {id:'top',t:'最常點的按鈕',get:function(r){return r.top?r.top.n:-1}},
  {id:'last',t:'最後活動時間',get:function(r){return r.last||0}}
 ];
@@ -211,19 +214,21 @@ function render(){
   td(tr,'客戶',r.name,'name');
   td(tr,'slug',r.slug,'slug');
   if(r.fail){
-   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=6;f.className='fail';
+   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=7;f.className='fail';
   }else{
    td(tr,'總點擊',r.d.total,'num');
    td(tr,'本週點擊',r.d.week_total,'num');
    td(tr,'訪客數',r.d.visitors,'num');
    td(tr,'本週訪客',r.d.week_visitors,'num');
+   var qn=(r.d.clicks&&r.d.clicks.qr_scan)||0;
+   td(tr,'QR 掃描',qn,'num qr'+(qn>0?' hot':''));
    td(tr,'最常點',r.top?(LABELS[r.top.t]||r.top.t)+' ×'+r.top.n:'—');
    var l=td(tr,'最後活動',rel(r.last));if(r.last)l.title=new Date(r.last).toLocaleString('zh-TW');
   }
   body.appendChild(tr);
  });
- var s={total:0,week:0,vis:0,wvis:0};
- rows.forEach(function(r){if(!r.fail){s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0}});
+ var s={total:0,week:0,vis:0,wvis:0,qr:0};
+ rows.forEach(function(r){if(!r.fail){s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0;s.qr+=(r.d.clicks&&r.d.clicks.qr_scan)||0}});
  var foot=$('foot');foot.textContent='';
  var tr=document.createElement('tr');tr.id='totalRow';
  td(tr,'','合計');
@@ -232,6 +237,7 @@ function render(){
  td(tr,'本週點擊',s.week,'num');
  td(tr,'訪客數',s.vis,'num');
  td(tr,'本週訪客',s.wvis,'num');
+ td(tr,'QR 掃描',s.qr,'num');
  td(tr,'','','blank');td(tr,'','','blank');
  foot.appendChild(tr);
  renderRm();
