@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>營運總覽</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 -apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif;background:#f4f5f7;color:#1f2430}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;padding:6px 12px;border:1px solid #c5cad3;background:#fff;border-radius:6px;cursor:pointer}
+button:hover{background:#eef1f6}
+button.primary{background:#2457d6;color:#fff;border-color:#2457d6}
+input{font:inherit;padding:6px 8px;border:1px solid #c5cad3;border-radius:6px;min-width:0}
+#login{max-width:420px;margin:12vh auto;background:#fff;padding:24px;border-radius:10px;box-shadow:0 2px 8px #0001}
+#login input{width:100%;margin:10px 0}
+.msg{color:#b3261e;margin:8px 0;min-height:1.4em}
+.tablebox{background:#fff;border-radius:10px;box-shadow:0 2px 8px #0001;overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e8eaef;white-space:nowrap}
+th{background:#fafbfc;cursor:pointer;user-select:none;font-weight:600}
+th.num,td.num{text-align:right}
+th .arr{color:#2457d6;font-size:12px}
+tfoot td{font-weight:700;background:#fafbfc;border-bottom:0}
+td.fail{color:#b3261e}
+.slug{color:#667;font-family:monospace}
+.status{color:#667;margin:8px 2px;font-size:13px}
+details{margin-top:14px;background:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 2px 8px #0001}
+summary{cursor:pointer;font-weight:600}
+.edit{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.edit input{flex:1 1 140px}
+.rm{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee;gap:8px}
+.rm span{overflow-wrap:anywhere}
+.hidden{display:none!important}
+@media(max-width:640px){
+ .wrap{padding:10px}
+ table,thead,tbody,tfoot,tr,td{display:block;width:100%}
+ thead{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid #e8eaef}
+ thead tr{display:flex;flex-wrap:wrap;gap:4px}
+ th{border:1px solid #dde;border-radius:14px;padding:3px 10px;font-size:13px}
+ th.nosort-m{display:none}
+ tbody tr{padding:8px 12px;border-bottom:1px solid #e8eaef}
+ tfoot tr{padding:8px 12px}
+ td{display:flex;justify-content:space-between;gap:12px;border:0;padding:2px 0;white-space:normal;text-align:right}
+ td::before{content:attr(data-label);color:#667;font-weight:400;text-align:left;flex:none}
+ td.num{text-align:right}
+ td.name{font-weight:700}
+ tfoot td.blank{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="login" class="hidden">
+  <h1>營運總覽</h1>
+  <p>請貼上 OP_KEY。金鑰只存在這個瀏覽器，只會送到你自己的 Google 後端。</p>
+  <form id="loginForm"><input id="keyIn" type="password" placeholder="OP_KEY" autocomplete="off" aria-label="OP_KEY"><button class="primary" type="submit">登入</button></form>
+  <div class="msg" id="loginMsg"></div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>營運總覽</h1>
+    <div class="bar">
+      <button id="refresh" class="primary">重新整理</button>
+      <button id="logout">登出／清除金鑰</button>
+    </div>
+  </header>
+  <div class="msg" id="appMsg"></div>
+  <div class="tablebox">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
+      <tfoot id="foot"></tfoot>
+    </table>
+  </div>
+  <div class="status" id="status"></div>
+  <details>
+    <summary>客戶清單管理</summary>
+    <form class="edit" id="addForm">
+      <input id="addSlug" placeholder="slug" aria-label="slug">
+      <input id="addName" placeholder="顯示名稱" aria-label="顯示名稱">
+      <button type="submit">新增客戶</button>
+    </form>
+    <div id="rmList"></div>
+    <button id="resetList" style="margin-top:8px">還原預設名單</button>
+  </details>
+</div>
+
+</div>
+<script>
+(function(){
+'use strict';
+var API='https://script.google.com/macros/s/AKfycbz6-2txbuJk2l3xJCWM7KoemrFPM-rpZuxvcd2A8Jk126LTu5qhBZgup7dicVsA3649/exec';
+var KEY_K='ops_key', LIST_K='ops_clients';
+var DEFAULTS=[
+ {slug:'chunmei',name:'永慶房屋 劉春美 Michelle'},
+ {slug:'tc-fez-glass',name:'友泰京玻璃 Benson'},
+ {slug:'be',name:'友泰京玻璃 李采宣 Be'},
+ {slug:'robert',name:'友泰京玻璃 李光展 Robert'},
+ {slug:'quanzhi',name:'銓治工程 鄧溢錩 鄧大哥'},
+ {slug:'cavin',name:'銓治工程 謝銘賢 Cavin'},
+ {slug:'carolyn',name:'銓治工程 魏依依 Carolyn'}
+];
+var LABELS={page:'開網頁',tel:'打電話',web:'開網站',market:'房價行情',service:'看了服務項目',svc_lecture:'想邀約演講',svc_engineer:'有工程需求',svc_loan:'想聊貸款',svc_biz:'企業主想問資源',share:'分享名片',qr_scan:'掃描 QR 進站'};
+var COLS=[
+ {id:'name',t:'客戶名稱',get:function(r){return r.name}},
+ {id:'slug',t:'slug',get:function(r){return r.slug}},
+ {id:'total',t:'總點擊',num:1,get:function(r){return r.d.total}},
+ {id:'week',t:'本週點擊',num:1,get:function(r){return r.d.week_total}},
+ {id:'vis',t:'訪客數',num:1,get:function(r){return r.d.visitors}},
+ {id:'wvis',t:'本週訪客',num:1,get:function(r){return r.d.week_visitors}},
+ {id:'top',t:'最常點的按鈕',get:function(r){return r.top?r.top.n:-1}},
+ {id:'last',t:'最後活動時間',get:function(r){return r.last||0}}
+];
+var $=function(i){return document.getElementById(i)};
+var rows=[], sortId='total', sortDir=-1;
+
+function getKey(){return localStorage.getItem(KEY_K)||''}
+function loadList(){try{var l=JSON.parse(localStorage.getItem(LIST_K));if(Array.isArray(l)&&l.length)return l}catch(e){}return DEFAULTS.map(function(x){return{slug:x.slug,name:x.name}})}
+function saveList(l){localStorage.setItem(LIST_K,JSON.stringify(l))}
+function show(which){$('login').classList.toggle('hidden',which!=='login');$('app').classList.toggle('hidden',which!=='app')}
+
+function call(q){
+ return fetch(API+'?'+q+'&key='+encodeURIComponent(getKey())).then(function(r){return r.json()});
+}
+function forbid(){
+ localStorage.removeItem(KEY_K);
+ rows=[];show('login');
+ $('loginMsg').textContent='金鑰錯誤（forbidden），已清除金鑰，請重新貼上正確的 OP_KEY。';
+}
+
+function rel(ts){
+ if(!ts)return '—';
+ var s=Math.max(0,(Date.now()-ts)/1000);
+ if(s<60)return '剛剛';
+ if(s<3600)return Math.floor(s/60)+' 分鐘前';
+ if(s<86400)return Math.floor(s/3600)+' 小時前';
+ if(s<86400*30)return Math.floor(s/86400)+' 天前';
+ if(s<86400*365)return Math.floor(s/86400/30)+' 個月前';
+ return Math.floor(s/86400/365)+' 年前';
+}
+function topOf(clicks){
+ var best=null;
+ Object.keys(clicks||{}).forEach(function(k){var n=clicks[k];if(!best||n>best.n)best={t:k,n:n}});
+ return best;
+}
+
+function fetchAll(){
+ var list=loadList();
+ $('appMsg').textContent='';
+ $('status').textContent='讀取中…';
+ var denied=false;
+ return Promise.all(list.map(function(c){
+  return call('stats='+encodeURIComponent(c.slug)).then(function(d){
+   if(d&&d.error==='forbidden'){denied=true;return{slug:c.slug,name:c.name,fail:true}}
+   if(!d||!d.ok)return{slug:c.slug,name:c.name,fail:true};
+   var rec=d.recent&&d.recent[0];
+   return{slug:c.slug,name:c.name,d:d,top:topOf(d.clicks),last:rec?rec.ts:0};
+  }).catch(function(){return{slug:c.slug,name:c.name,fail:true}});
+ })).then(function(r){
+  if(denied){forbid();return}
+  rows=r;render();
+  var bad=r.filter(function(x){return x.fail}).length;
+  $('status').textContent='更新於 '+new Date().toLocaleString('zh-TW')+'；共 '+r.length+' 位客戶'+(bad?'，'+bad+' 位讀取失敗':'');
+ });
+}
+
+function mergeCodes(){
+ return call('codes=1').then(function(d){
+  if(d&&d.error==='forbidden'){forbid();return false}
+  if(d&&d.ok&&Array.isArray(d.codes)){
+   var list=loadList(),have={};
+   list.forEach(function(c){have[c.slug]=1});
+   d.codes.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:c.slug})}});
+   saveList(list);
+  }
+  return true;
+ }).catch(function(){return true});
+}
+
+function cmp(a,b){
+ var col=COLS.filter(function(c){return c.id===sortId})[0];
+ if(a.fail||b.fail)return a.fail&&b.fail?0:(a.fail?1:-1);
+ var x=col.get(a),y=col.get(b);
+ var r=(typeof x==='string')?x.localeCompare(y,'zh-Hant'):x-y;
+ return r*sortDir;
+}
+
+function td(tr,label,text,cls){
+ var e=document.createElement('td');e.setAttribute('data-label',label);e.textContent=text;if(cls)e.className=cls;tr.appendChild(e);return e;
+}
+
+function render(){
+ var head=$('head');head.textContent='';
+ COLS.forEach(function(c){
+  var th=document.createElement('th');
+  th.textContent=c.t;if(c.num)th.className='num';
+  if(sortId===c.id){var a=document.createElement('span');a.className='arr';a.textContent=sortDir<0?' ▼':' ▲';th.appendChild(a)}
+  th.onclick=function(){if(sortId===c.id)sortDir=-sortDir;else{sortId=c.id;sortDir=c.num||c.id==='last'||c.id==='top'?-1:1}render()};
+  head.appendChild(th);
+ });
+ var body=$('body');body.textContent='';
+ rows.slice().sort(cmp).forEach(function(r){
+  var tr=document.createElement('tr');tr.setAttribute('data-slug',r.slug);
+  td(tr,'客戶',r.name,'name');
+  td(tr,'slug',r.slug,'slug');
+  if(r.fail){
+   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=6;f.className='fail';
+  }else{
+   td(tr,'總點擊',r.d.total,'num');
+   td(tr,'本週點擊',r.d.week_total,'num');
+   td(tr,'訪客數',r.d.visitors,'num');
+   td(tr,'本週訪客',r.d.week_visitors,'num');
+   td(tr,'最常點',r.top?(LABELS[r.top.t]||r.top.t)+' ×'+r.top.n:'—');
+   var l=td(tr,'最後活動',rel(r.last));if(r.last)l.title=new Date(r.last).toLocaleString('zh-TW');
+  }
+  body.appendChild(tr);
+ });
+ var s={total:0,week:0,vis:0,wvis:0};
+ rows.forEach(function(r){if(!r.fail){s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0}});
+ var foot=$('foot');foot.textContent='';
+ var tr=document.createElement('tr');tr.id='totalRow';
+ td(tr,'','合計');
+ td(tr,'','','blank');
+ td(tr,'總點擊',s.total,'num');
+ td(tr,'本週點擊',s.week,'num');
+ td(tr,'訪客數',s.vis,'num');
+ td(tr,'本週訪客',s.wvis,'num');
+ td(tr,'','','blank');td(tr,'','','blank');
+ foot.appendChild(tr);
+ renderRm();
+}
+
+function renderRm(){
+ var box=$('rmList');box.textContent='';
+ loadList().forEach(function(c){
+  var d=document.createElement('div');d.className='rm';
+  var s=document.createElement('span');s.textContent=c.name+'（'+c.slug+'）';
+  var b=document.createElement('button');b.textContent='移除';
+  b.onclick=function(){saveList(loadList().filter(function(x){return x.slug!==c.slug}));rows=rows.filter(function(x){return x.slug!==c.slug});render()};
+  d.appendChild(s);d.appendChild(b);box.appendChild(d);
+ });
+}
+
+function enter(){
+ show('app');
+ renderRm();
+ mergeCodes().then(function(ok){if(ok)return fetchAll()});
+}
+
+$('loginForm').onsubmit=function(e){
+ e.preventDefault();
+ var k=$('keyIn').value.trim();
+ if(!k){$('loginMsg').textContent='請輸入金鑰';return}
+ localStorage.setItem(KEY_K,k);$('keyIn').value='';$('loginMsg').textContent='';
+ enter();
+};
+$('refresh').onclick=function(){fetchAll()};
+$('logout').onclick=function(){localStorage.removeItem(KEY_K);rows=[];show('login');$('loginMsg').textContent='已登出，金鑰已清除。'};
+$('addForm').onsubmit=function(e){
+ e.preventDefault();
+ var s=$('addSlug').value.trim(),n=$('addName').value.trim();
+ if(!s)return;
+ var l=loadList();
+ if(l.some(function(x){return x.slug===s})){$('appMsg').textContent='slug 已存在：'+s;return}
+ l.push({slug:s,name:n||s});saveList(l);
+ $('addSlug').value='';$('addName').value='';$('appMsg').textContent='';
+ fetchAll();
+};
+$('resetList').onclick=function(){localStorage.removeItem(LIST_K);fetchAll()};
+
+if(getKey())enter();else show('login');
+})();
+</script>
+</body>
+</html>
