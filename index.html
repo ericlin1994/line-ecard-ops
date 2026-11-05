@@ -99,7 +99,7 @@ summary{cursor:pointer;font-weight:600}
 (function(){
 'use strict';
 var API='https://script.google.com/macros/s/AKfycbz6-2txbuJk2l3xJCWM7KoemrFPM-rpZuxvcd2A8Jk126LTu5qhBZgup7dicVsA3649/exec';
-var KEY_K='ops_key', LIST_K='ops_clients';
+var KEY_K='ops_key', LIST_K='ops_clients', IGN_K='ops_ignore';
 var DEFAULTS=[
  {slug:'chunmei',name:'永慶房屋 劉春美 Michelle'},
  {slug:'tc-fez-glass',name:'友泰京玻璃 Benson'},
@@ -107,12 +107,14 @@ var DEFAULTS=[
  {slug:'robert',name:'友泰京玻璃 李光展 Robert'},
  {slug:'quanzhi',name:'銓治工程 鄧溢錩 鄧大哥'},
  {slug:'cavin',name:'銓治工程 謝銘賢 Cavin'},
- {slug:'carolyn',name:'銓治工程 魏依依 Carolyn'}
+ {slug:'carolyn',name:'銓治工程 魏依依 Carolyn'},
+ {slug:'ethan',name:'銓治工程 邱智顯 Ethan'}
 ];
 var LABELS={page:'開網頁',tel:'打電話',web:'開網站',market:'房價行情',service:'看了服務項目',svc_lecture:'想邀約演講',svc_engineer:'有工程需求',svc_loan:'想聊貸款',svc_biz:'企業主想問資源',share:'分享名片',qr_scan:'掃描 QR 進站'};
 var COLS=[
  {id:'name',t:'客戶名稱',get:function(r){return r.name}},
  {id:'slug',t:'slug',get:function(r){return r.slug}},
+ {id:'views',t:'名片頁瀏覽數',num:1,get:function(r){return r.d.views||0}},
  {id:'total',t:'總點擊',num:1,get:function(r){return r.d.total}},
  {id:'week',t:'本週點擊',num:1,get:function(r){return r.d.week_total}},
  {id:'vis',t:'訪客數',num:1,get:function(r){return r.d.visitors}},
@@ -127,6 +129,8 @@ var rows=[], sortId='total', sortDir=-1;
 function getKey(){return localStorage.getItem(KEY_K)||''}
 function loadList(){try{var l=JSON.parse(localStorage.getItem(LIST_K));if(Array.isArray(l)&&l.length)return l}catch(e){}return DEFAULTS.map(function(x){return{slug:x.slug,name:x.name}})}
 function saveList(l){localStorage.setItem(LIST_K,JSON.stringify(l))}
+function loadIgnore(){try{var l=JSON.parse(localStorage.getItem(IGN_K));if(Array.isArray(l))return l}catch(e){}return []}
+function saveIgnore(l){localStorage.setItem(IGN_K,JSON.stringify(l))}
 function show(which){$('login').classList.toggle('hidden',which!=='login');$('app').classList.toggle('hidden',which!=='app')}
 
 function call(q){
@@ -179,8 +183,23 @@ function mergeCodes(){
   if(d&&d.error==='forbidden'){forbid();return false}
   if(d&&d.ok&&Array.isArray(d.codes)){
    var list=loadList(),have={};
+   loadIgnore().forEach(function(s){have[s]=1});
    list.forEach(function(c){have[c.slug]=1});
    d.codes.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:c.slug})}});
+   saveList(list);
+  }
+  return true;
+ }).catch(function(){return true});
+}
+
+function mergeSlugs(){
+ return call('slugs=1').then(function(d){
+  if(d&&d.error==='forbidden'){forbid();return false}
+  if(d&&d.ok&&Array.isArray(d.slugs)){
+   var list=loadList(),have={};
+   loadIgnore().forEach(function(s){have[s]=1});
+   list.forEach(function(c){have[c.slug]=1});
+   d.slugs.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:c.slug})}});
    saveList(list);
   }
   return true;
@@ -214,8 +233,9 @@ function render(){
   td(tr,'客戶',r.name,'name');
   td(tr,'slug',r.slug,'slug');
   if(r.fail){
-   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=7;f.className='fail';
+   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=8;f.className='fail';
   }else{
+   td(tr,'名片頁瀏覽數',r.d.views||0,'num');
    td(tr,'總點擊',r.d.total,'num');
    td(tr,'本週點擊',r.d.week_total,'num');
    td(tr,'訪客數',r.d.visitors,'num');
@@ -227,12 +247,13 @@ function render(){
   }
   body.appendChild(tr);
  });
- var s={total:0,week:0,vis:0,wvis:0,qr:0};
- rows.forEach(function(r){if(!r.fail){s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0;s.qr+=(r.d.clicks&&r.d.clicks.qr_scan)||0}});
+ var s={views:0,total:0,week:0,vis:0,wvis:0,qr:0};
+ rows.forEach(function(r){if(!r.fail){s.views+=r.d.views||0;s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0;s.qr+=(r.d.clicks&&r.d.clicks.qr_scan)||0}});
  var foot=$('foot');foot.textContent='';
  var tr=document.createElement('tr');tr.id='totalRow';
  td(tr,'','合計');
  td(tr,'','','blank');
+ td(tr,'名片頁瀏覽數',s.views,'num');
  td(tr,'總點擊',s.total,'num');
  td(tr,'本週點擊',s.week,'num');
  td(tr,'訪客數',s.vis,'num');
@@ -249,7 +270,7 @@ function renderRm(){
   var d=document.createElement('div');d.className='rm';
   var s=document.createElement('span');s.textContent=c.name+'（'+c.slug+'）';
   var b=document.createElement('button');b.textContent='移除';
-  b.onclick=function(){saveList(loadList().filter(function(x){return x.slug!==c.slug}));rows=rows.filter(function(x){return x.slug!==c.slug});render()};
+  b.onclick=function(){var ig=loadIgnore();if(ig.indexOf(c.slug)<0){ig.push(c.slug);saveIgnore(ig)}saveList(loadList().filter(function(x){return x.slug!==c.slug}));rows=rows.filter(function(x){return x.slug!==c.slug});render()};
   d.appendChild(s);d.appendChild(b);box.appendChild(d);
  });
 }
@@ -257,7 +278,10 @@ function renderRm(){
 function enter(){
  show('app');
  renderRm();
- mergeCodes().then(function(ok){if(ok)return fetchAll()});
+ mergeCodes().then(function(ok){
+  if(!ok)return;
+  return mergeSlugs().then(function(ok2){if(ok2)return fetchAll()});
+ });
 }
 
 $('loginForm').onsubmit=function(e){
@@ -279,7 +303,7 @@ $('addForm').onsubmit=function(e){
  $('addSlug').value='';$('addName').value='';$('appMsg').textContent='';
  fetchAll();
 };
-$('resetList').onclick=function(){localStorage.removeItem(LIST_K);fetchAll()};
+$('resetList').onclick=function(){localStorage.removeItem(LIST_K);localStorage.removeItem(IGN_K);fetchAll()};
 
 if(getKey())enter();else show('login');
 })();
