@@ -128,7 +128,14 @@ var $=function(i){return document.getElementById(i)};
 var rows=[], sortId='total', sortDir=-1;
 
 function getKey(){return localStorage.getItem(KEY_K)||''}
-function loadList(){try{var l=JSON.parse(localStorage.getItem(LIST_K));if(Array.isArray(l)&&l.length)return l}catch(e){}return DEFAULTS.map(function(x){return{slug:x.slug,name:x.name}})}
+var NAMES={};DEFAULTS.forEach(function(x){NAMES[x.slug]=x.name});
+function loadList(){try{var l=JSON.parse(localStorage.getItem(LIST_K));if(Array.isArray(l)&&l.length){
+ var ch=false,have={};
+ l.forEach(function(c){have[c.slug]=1;if((!c.name||c.name===c.slug)&&NAMES[c.slug]&&c.name!==NAMES[c.slug]){c.name=NAMES[c.slug];ch=true}});
+ loadIgnore().forEach(function(s){have[s]=1});
+ DEFAULTS.forEach(function(x){if(!have[x.slug]){have[x.slug]=1;l.push({slug:x.slug,name:NAMES[x.slug]});ch=true}});
+ if(ch)saveList(l);
+ return l}}catch(e){}return DEFAULTS.map(function(x){return{slug:x.slug,name:x.name}})}
 function saveList(l){localStorage.setItem(LIST_K,JSON.stringify(l))}
 function loadIgnore(){try{var l=JSON.parse(localStorage.getItem(IGN_K));if(Array.isArray(l))return l}catch(e){}return []}
 function saveIgnore(l){localStorage.setItem(IGN_K,JSON.stringify(l))}
@@ -186,7 +193,7 @@ function mergeCodes(){
    var list=loadList(),have={};
    loadIgnore().forEach(function(s){have[s]=1});
    list.forEach(function(c){have[c.slug]=1});
-   d.codes.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:c.slug})}});
+   d.codes.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:NAMES[c.slug]||c.slug})}});
    saveList(list);
   }
   return true;
@@ -200,7 +207,7 @@ function mergeSlugs(){
    var list=loadList(),have={};
    loadIgnore().forEach(function(s){have[s]=1});
    list.forEach(function(c){have[c.slug]=1});
-   d.slugs.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:c.slug})}});
+   d.slugs.forEach(function(c){if(c.slug&&!have[c.slug]){have[c.slug]=1;list.push({slug:c.slug,name:NAMES[c.slug]||c.slug})}});
    saveList(list);
   }
   return true;
