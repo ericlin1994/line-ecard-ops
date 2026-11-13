@@ -111,7 +111,8 @@ var DEFAULTS=[
  {slug:'ethan',name:'銓治工程 邱智顯 Ethan'},
  {slug:'movenpick-sofa',name:'莫凡彼沙發工藝 吳明憲 Steve'}
 ];
-var LABELS={page:'開網頁',tel:'打電話',web:'開網站',market:'房價行情',service:'看了服務項目',svc_lecture:'想邀約演講',svc_engineer:'有工程需求',svc_loan:'想聊貸款',svc_biz:'企業主想問資源',share:'分享名片',qr_scan:'掃描 QR 進站'};
+var LABELS={page:'開網頁',tel:'打電話',web:'開網站',market:'房價行情',service:'看了服務項目',svc_lecture:'想邀約演講',svc_engineer:'有工程需求',svc_loan:'想聊貸款',svc_biz:'企業主想問資源',share:'分享名片',qr_scan:'掃描 QR 進站',ig:'看 IG',line:'加 LINE',fb:'看 FB',map:'開地圖'};
+var SHORT={page:'名片頁',tel:'電話',web:'網站',ig:'IG',line:'LINE',fb:'FB',map:'地圖',market:'行情',service:'服務',share:'分享',svc_lecture:'演講',svc_engineer:'工程',svc_loan:'貸款',svc_biz:'企業',qr_scan:'QR'};
 var COLS=[
  {id:'name',t:'客戶名稱',get:function(r){return r.name}},
  {id:'slug',t:'slug',get:function(r){return r.slug}},
@@ -122,6 +123,7 @@ var COLS=[
  {id:'wvis',t:'本週訪客',num:1,get:function(r){return r.d.week_visitors}},
  {id:'qr',t:'QR 掃描',num:1,get:function(r){return (r.d.clicks&&r.d.clicks.qr_scan)||0}},
  {id:'top',t:'最常點的按鈕',get:function(r){return r.top?r.top.n:-1}},
+ {id:'btns',t:'按鈕點擊',num:1,get:function(r){return btnSum(r.d.clicks)}},
  {id:'last',t:'最後活動時間',get:function(r){return r.last||0}}
 ];
 var $=function(i){return document.getElementById(i)};
@@ -164,6 +166,18 @@ function topOf(clicks){
  var best=null;
  Object.keys(clicks||{}).forEach(function(k){var n=clicks[k];if(!best||n>best.n)best={t:k,n:n}});
  return best;
+}
+// 按鈕點擊總數（不含 qr_scan）
+function btnSum(clicks){
+ var t=0;
+ Object.keys(clicks||{}).forEach(function(k){if(k!=='qr_scan'&&clicks[k]>0)t+=clicks[k]});
+ return t;
+}
+// 各按鈕點擊明細，依次數由多到少
+function btnsOf(clicks){
+ var ks=Object.keys(clicks||{}).filter(function(k){return k!=='qr_scan'&&clicks[k]>0});
+ ks.sort(function(a,b){return clicks[b]-clicks[a]});
+ return ks.length?ks.map(function(k){return (SHORT[k]||LABELS[k]||k)+' '+clicks[k]}).join(' · '):'—';
 }
 
 function fetchAll(){
@@ -241,7 +255,7 @@ function render(){
   td(tr,'客戶',r.name,'name');
   td(tr,'slug',r.slug,'slug');
   if(r.fail){
-   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=8;f.className='fail';
+   var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=COLS.length-2;f.className='fail';
   }else{
    td(tr,'名片頁瀏覽數',r.d.views||0,'num');
    td(tr,'總點擊',r.d.total,'num');
@@ -251,12 +265,13 @@ function render(){
    var qn=(r.d.clicks&&r.d.clicks.qr_scan)||0;
    td(tr,'QR 掃描',qn,'num qr'+(qn>0?' hot':''));
    td(tr,'最常點',r.top?(LABELS[r.top.t]||r.top.t)+' ×'+r.top.n:'—');
+   td(tr,'按鈕點擊',btnsOf(r.d.clicks));
    var l=td(tr,'最後活動',rel(r.last));if(r.last)l.title=new Date(r.last).toLocaleString('zh-TW');
   }
   body.appendChild(tr);
  });
- var s={views:0,total:0,week:0,vis:0,wvis:0,qr:0};
- rows.forEach(function(r){if(!r.fail){s.views+=r.d.views||0;s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0;s.qr+=(r.d.clicks&&r.d.clicks.qr_scan)||0}});
+ var s={views:0,total:0,week:0,vis:0,wvis:0,qr:0,clicks:{}};
+ rows.forEach(function(r){if(!r.fail){Object.keys(r.d.clicks||{}).forEach(function(k){s.clicks[k]=(s.clicks[k]||0)+(r.d.clicks[k]||0)});s.views+=r.d.views||0;s.total+=r.d.total||0;s.week+=r.d.week_total||0;s.vis+=r.d.visitors||0;s.wvis+=r.d.week_visitors||0;s.qr+=(r.d.clicks&&r.d.clicks.qr_scan)||0}});
  var foot=$('foot');foot.textContent='';
  var tr=document.createElement('tr');tr.id='totalRow';
  td(tr,'','合計');
@@ -267,7 +282,9 @@ function render(){
  td(tr,'訪客數',s.vis,'num');
  td(tr,'本週訪客',s.wvis,'num');
  td(tr,'QR 掃描',s.qr,'num');
- td(tr,'','','blank');td(tr,'','','blank');
+ td(tr,'','','blank');
+ td(tr,'按鈕點擊',btnsOf(s.clicks));
+ td(tr,'','','blank');
  foot.appendChild(tr);
  renderRm();
 }
