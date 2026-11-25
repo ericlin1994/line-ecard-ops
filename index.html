@@ -30,6 +30,9 @@ td.fail{color:#b3261e}
 td.qr{color:#889}
 td.qr.hot{color:#2457d6;font-weight:700}
 .slug{color:#667;font-family:monospace}
+td.meta{color:#667;font-size:13px}
+td.meta a{color:#2457d6;text-decoration:none}
+td.meta a:hover{text-decoration:underline}
 .status{color:#667;margin:8px 2px;font-size:13px}
 details{margin-top:14px;background:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 2px 8px #0001}
 summary{cursor:pointer;font-weight:600}
@@ -112,8 +115,27 @@ var DEFAULTS=[
  {slug:'movenpick-sofa',name:'莫凡彼沙發工藝 吳明憲 Steve'},
  {slug:'linmu',name:'霖沐室內裝修工程 黃聖霖 LION'},
  {slug:'jerrywu',name:'企業教練 吳伯謙 Jerry'},
- {slug:'cc',name:'BeamLink Club 房產俱樂部 楊翊希 CC'}
+ {slug:'cc',name:'BeamLink Club 房產俱樂部 楊翊希 CC'},
+ {slug:'glazier',name:'玻璃小工'},
+ {slug:'jet',name:'捷利勁 JETLIJIN 楊庭豪 Jet'}
 ];
+// 客戶名片後設資料：網域／LINE LIFF ID／層級／上線日（來源：card-src/<客戶>/client.json 與部署 repo 首個 commit）
+var META={
+ chunmei:{domain:'chunmei.cardtaiwan.com',liff:'2011946176-ZYhP6avY',tier:'L2',live:'2026-11-02'},
+ 'tc-fez-glass':{domain:'benson.cardtaiwan.com',liff:'2011946176-m9EBmuJf',tier:'L2',live:'2026-10-06'},
+ be:{domain:'be.cardtaiwan.com',liff:'2011946176-a2549LFU',tier:'L1',live:'2026-10-27'},
+ robert:{domain:'robert.cardtaiwan.com',liff:'2011946176-a2549LFU',tier:'L1',live:'2026-10-27'},
+ quanzhi:{domain:'sunny.cardtaiwan.com',liff:'2011946176-a2549LFU',tier:'L1',live:'2026-10-25'},
+ cavin:{domain:'cavin.cardtaiwan.com',liff:'2011946176-a2549LFU',tier:'L1',live:'2026-11-01'},
+ carolyn:{domain:'carolyn.cardtaiwan.com',liff:'2011946176-a2549LFU',tier:'L1',live:'2026-11-02'},
+ ethan:{domain:'ethan.cardtaiwan.com',liff:'2011946176-a2549LFU',tier:'L1',live:'2026-11-05'},
+ 'movenpick-sofa':{domain:'movenpick.cardtaiwan.com',liff:'2011946176-F5ppH6KJ',tier:'L2',live:'2026-11-09'},
+ linmu:{domain:'linmu.cardtaiwan.com',liff:'2011946176-a8hVcJCX',tier:'L2',live:'2026-11-18'},
+ jerrywu:{domain:'jerrywu.cardtaiwan.com',liff:'2011946176-u9TjkI8a',tier:'L2',live:'2026-11-19'},
+ cc:{domain:'cc.cardtaiwan.com',liff:'2011946176-jToYHwuT',tier:'L2',live:'2026-11-21'},
+ glazier:{domain:'glazier.cardtaiwan.com',liff:'2011946176-iofs9Cdi',tier:'L2',live:'2026-11-21'},
+ jet:{domain:'jet.cardtaiwan.com',liff:'2011946176-7DdKz4uT',tier:'L2',live:'2026-11-23'}
+};
 var LABELS={page:'開名片頁',tel:'打電話',web:'開網站',market:'房價行情',service:'看了服務項目',svc_lecture:'想邀約演講',svc_engineer:'有工程需求',svc_loan:'想聊貸款',svc_biz:'企業主想問資源',share:'分享名片',qr_scan:'掃描 QR 進站',ig:'看 IG',line:'加 LINE',fb:'看 FB',map:'開地圖',booking:'線上預約'};
 var SHORT={page:'名片頁',tel:'電話',web:'網站',ig:'IG',line:'LINE',fb:'FB',map:'地圖',market:'行情',service:'服務',share:'分享',svc_lecture:'演講',svc_engineer:'工程',svc_loan:'貸款',svc_biz:'企業',qr_scan:'QR',booking:'預約'};
 // 未具名原因代碼 → 中文
@@ -121,6 +143,10 @@ var REASONS={'(無代碼)':'網站端','not_in_line':'非 LINE 環境','not_logg
 var COLS=[
  {id:'name',t:'客戶名稱',get:function(r){return r.name}},
  {id:'slug',t:'slug',get:function(r){return r.slug}},
+ {id:'domain',t:'網域',get:function(r){return (META[r.slug]||{}).domain||''}},
+ {id:'liff',t:'LIFF',get:function(r){return (META[r.slug]||{}).liff||''}},
+ {id:'tier',t:'層級',get:function(r){return (META[r.slug]||{}).tier||''}},
+ {id:'live',t:'上線日',get:function(r){return (META[r.slug]||{}).live||''}},
  {id:'views',t:'名片頁瀏覽數',num:1,get:function(r){return r.d.views||0}},
  {id:'total',t:'總點擊',num:1,get:function(r){return r.d.total}},
  {id:'week',t:'本週點擊',num:1,get:function(r){return r.d.week_total}},
@@ -255,6 +281,11 @@ function cmp(a,b){
 function td(tr,label,text,cls){
  var e=document.createElement('td');e.setAttribute('data-label',label);e.textContent=text;if(cls)e.className=cls;tr.appendChild(e);return e;
 }
+function tdLink(tr,label,text,href,cls){
+ var e=document.createElement('td');e.setAttribute('data-label',label);
+ if(text){var a=document.createElement('a');a.href=href;a.target='_blank';a.rel='noopener';a.textContent=text;e.appendChild(a)}else{e.textContent='—'}
+ if(cls)e.className=cls;tr.appendChild(e);return e;
+}
 
 function render(){
  var head=$('head');head.textContent='';
@@ -268,8 +299,13 @@ function render(){
  var body=$('body');body.textContent='';
  rows.slice().sort(cmp).forEach(function(r){
   var tr=document.createElement('tr');tr.setAttribute('data-slug',r.slug);
+  var m=META[r.slug]||{};
   td(tr,'客戶',r.name,'name');
   td(tr,'slug',r.slug,'slug');
+  td(tr,'網域',m.domain||'—','meta');
+  tdLink(tr,'LIFF',m.liff,m.liff?('https://liff.line.me/'+m.liff):'','meta');
+  td(tr,'層級',m.tier||'—','meta');
+  td(tr,'上線日',m.live||'—','meta');
   if(r.fail){
    var f=td(tr,'狀態','讀取失敗','fail');f.colSpan=COLS.length-2;f.className='fail';
   }else{
@@ -292,6 +328,10 @@ function render(){
  var foot=$('foot');foot.textContent='';
  var tr=document.createElement('tr');tr.id='totalRow';
  td(tr,'','合計');
+ td(tr,'','','blank');
+ td(tr,'','','blank');
+ td(tr,'','','blank');
+ td(tr,'','','blank');
  td(tr,'','','blank');
  td(tr,'名片頁瀏覽數',s.views,'num');
  td(tr,'總點擊',s.total,'num');
